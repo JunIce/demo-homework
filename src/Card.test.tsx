@@ -105,9 +105,33 @@ describe("Card", () => {
     })
 
     await waitFor(() => {
-      expect(resultItem.length).toEqual(1)
+      expect(resultItem.length).toBe(1)
     }, {
       timeout: 2000
     })
-  })
+  });
+
+  test("card with errro response", async() => {
+    let { container, input } = setup();
+
+    expect((input as HTMLInputElement).value).toBe("");
+
+    // eslint-disable-next-line
+    let errorResponse = container.getElementsByClassName("error-tip");
+
+    fireEvent.change(input, {
+      target: {
+        value: "12873827388",
+      },
+    });
+
+    expect((input as HTMLInputElement).value).toBe("12873827388"); 
+    expect(errorResponse.length).toBe(0);
+    
+    await waitFor(() => {
+      expect(errorResponse.length).toBe(1)
+    }, {
+      timeout: 2000
+    });
+  });
 });
