@@ -1,43 +1,72 @@
-import React, { ChangeEvent, useCallback, useEffect, useState } from "react";
+import React, {
+  ChangeEvent,
+  createRef,
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import "./Card.css";
 import { AxiosInstance } from "./utils/request";
 import { classnames, debounce } from "./utils/util";
 
 const QQREG = /\d{5,11}/;
+const API_URL = "https://api.uomg.com/api/qq.info";
+
+type InputProps = {
+  onChange: Function;
+};
+
+const Input: React.FC<InputProps> = ({ onChange }) => {
+  const ref = createRef<HTMLInputElement>();
+
+  const valueRef = useRef<string>("");
+
+  const onValueChange = (e: ChangeEvent<HTMLInputElement>) => {
+    let currentValue = e.target.value + "";
+    // remove no-number
+    currentValue = currentValue.replace(/\D/g, "");
+    // max-length
+    if (currentValue.length > 11) {
+      currentValue = currentValue.substring(0, 11);
+    }
+    // set value to origin input element
+    e.target.value = currentValue;
+
+    // only fetch data when value is correct qq number
+    if (valueRef.current !== currentValue) {
+      onChange(currentValue);
+      valueRef.current = currentValue;
+    }
+  };
+
+  return (
+    <input
+      ref={ref}
+      type="text"
+      onChange={onValueChange}
+      placeholder="请输入5-11位QQ号"
+    />
+  );
+};
+
+const InputWrapper = memo(Input);
 
 export const Card: React.FC<{}> = () => {
   const [value, setValue] = useState<string>("");
-  const [valid, setValid] = useState<boolean>(false);
+  const [valid, setValid] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
   const [resp, setResp] = useState<ServerResponseData | null>(null);
 
-  const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value + "";
-    // remove no-number
-    value = value.replace(/\D/g, "");
-    // max-length
-    if (value.length > 11) {
-      value = value.substring(0, 11);
-    }
-    // set value to origin input element
-    e.target.value = value;
-
-    let isValid = QQREG.test(value);
-
-    setValid(!isValid);
-    // only fetch data when value is correct qq number
-    isValid && setValue(value);
-  };
-
-
-
-  useEffect(() => {
-    fetchData({ qq: value });
-  }, [value]);
+  const onChange = useCallback((currentValue: string) => {
+    setValid(() => QQREG.test(currentValue));
+    setValue(() => currentValue);
+  }, []);
 
   const fetchServerData = (params: any) => {
     setLoading(true);
-    AxiosInstance.get("https://api.uomg.com/api/qq.info", params)
+    AxiosInstance.get(API_URL, params)
       .then((res: ServerResponseData) => setResp(res))
       .finally(() => {
         setLoading(false);
@@ -46,30 +75,20 @@ export const Card: React.FC<{}> = () => {
 
   const fetchData = useCallback(debounce(fetchServerData, 800), []);
 
-  const renderResult = () => {
-    if (loading) {
-      return (
-        <div className="content-wrapper">
-          <img
-            className="icon-loading"
-            src="/assets/loading.svg"
-            alt="loading"
-          />
-        </div>
-      );
-    }
+  useEffect(() => {
+    valid && value && fetchData({ qq: value });
+  }, [ valid, value, fetchData ]);
 
-    if (!resp) return;
-
-    if (resp?.code !== 1) {
-      return (
-        <div className="error-tip">
-          <div className="error-tip_text">{resp?.msg || "服务器异常"}</div>
-        </div>
-      );
-    }
-
-    return (
+  const resultContent = loading ? (
+    <div className="content-wrapper">
+      <img className="icon-loading" src="/assets/loading.svg" alt="loading" />
+    </div>
+  ) : resp ? (
+    resp.code !== 1 ? (
+      <div className="error-tip">
+        <div className="error-tip_text">{resp?.msg || "服务器异常"}</div>
+      </div>
+    ) : (
       <div className="card-item">
         <img className="card-item_avatar" src={resp.qlogo} alt={resp.name} />
         <div className="card-item_info">
@@ -77,8 +96,8 @@ export const Card: React.FC<{}> = () => {
           <div className="card-item_number">{resp.qq}</div>
         </div>
       </div>
-    );
-  };
+    )
+  ) : null;
 
   return (
     <section className="card-wrapper">
@@ -89,21 +108,13 @@ export const Card: React.FC<{}> = () => {
       <div
         className={classnames({
           "card-input-box": true,
-          "card-input-box_error": valid,
+          "card-input-box_error": !valid,
         })}
       >
-        <div>
-          <input
-            type="text"
-            onChange={onInputChange}
-            placeholder="请输入5-11位QQ号"
-          />
-        </div>
+        <InputWrapper onChange={onChange}></InputWrapper>
       </div>
 
-      <div className="card-result-box">
-        <div>{renderResult()}</div>
-      </div>
+      <div className="card-result-box">{resultContent}</div>
     </section>
   );
 };
