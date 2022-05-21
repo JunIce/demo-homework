@@ -8,8 +8,8 @@ import React, {
   useState,
 } from "react";
 import "./Card.css";
-import { AxiosInstance } from "./utils/request";
-import { classnames, debounce } from "./utils/util";
+import { AxiosInstance } from "../../utils/request";
+import { classnames, debounce } from "../../utils/util";
 
 const QQREG = /\d{5,11}/;
 const API_URL = "https://api.uomg.com/api/qq.info";
